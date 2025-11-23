@@ -4,3 +4,4 @@ notebook/
 __pycache__/
 logs/
 .env
+node_modules/
