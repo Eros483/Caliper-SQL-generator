@@ -28,9 +28,7 @@ async def lifespan(app: FastAPI):
         raise e
     
     yield
-    
-    # Cleanup code (close DB connections) could go here if your class supported it
-    logger.info("Shutting down...")
+
 
 app = FastAPI(
     title="Caliper NLP-to-SQL API",
@@ -59,24 +57,21 @@ async def health_check():
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest):
-    """
-    Main chat endpoint. Receives a query, runs the agent graph, returns the answer.
-    """
     if not agent_instance:
         raise HTTPException(status_code=503, detail="Agent not initialized")
 
     try:
-        logger.info(f"Received query: {request.query}")
+        logger.info(f"Session: {request.session_id} | Query: {request.query}")
         
-        # Run the agent (Synchronously for now, as LangGraph runs sync by default)
-        result = agent_instance.run(request.query)
+        # Pass the session_id to the agent
+        result = agent_instance.run(request.query, session_id=request.session_id)
         
         return ChatResponse(response=result)
     
     except Exception as e:
         logger.error(f"Error processing query: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
+                            
 if __name__ == "__main__":
     # Standard development run command
     uvicorn.run("backend.main:app", host="0.0.0.0", port=8000, reload=True)

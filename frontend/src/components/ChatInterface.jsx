@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+// Update the import to pass session ID later
 import { sendMessage, checkHealth } from '../services/api';
 import ChatMessage from './ChatMessage';
 import ChatInput from './ChatInput';
@@ -8,10 +9,19 @@ function ChatInterface() {
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState('checking');
+  // 1. ADD STATE FOR SESSION ID
+  const [sessionId, setSessionId] = useState('');
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
     checkBackendHealth();
+    // 2. INITIALIZE SESSION ID
+    let storedSessionId = localStorage.getItem("chat_session_id");
+    if (!storedSessionId) {
+      storedSessionId = crypto.randomUUID();
+      localStorage.setItem("chat_session_id", storedSessionId);
+    }
+    setSessionId(storedSessionId);
   }, []);
 
   useEffect(() => {
@@ -45,7 +55,8 @@ function ChatInterface() {
     setIsLoading(true);
 
     try {
-      const response = await sendMessage(text);
+      // 3. PASS SESSION ID TO THE API FUNCTION
+      const response = await sendMessage(text, sessionId);
 
       const aiMessage = {
         id: Date.now() + 1,
@@ -71,6 +82,11 @@ function ChatInterface() {
 
   const handleClearChat = () => {
     setMessages([]);
+    // 4. OPTIONAL: RESET SESSION ON CLEAR
+    // This effectively "wipes" the agent's memory for a fresh start
+    const newSessionId = crypto.randomUUID();
+    setSessionId(newSessionId);
+    localStorage.setItem("chat_session_id", newSessionId);
   };
 
   return (
