@@ -97,6 +97,7 @@ function ChatInterface() {
             <a href="#clients" className="nav-link">Clients</a>
             <a href="#about" className="nav-link">About</a>
             <a href="#resources" className="nav-link">Resources</a>
+            <a href="#SQL-Tool" className="nav-link"><b>CaliperLens</b></a>
           </nav>
 
           <div className="navbar-cta">
@@ -120,17 +121,8 @@ function ChatInterface() {
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                 </svg>
               </div>
-              <h2>AI-Powered Database Insights</h2>
-              <p className="empty-subtitle">Ask natural language questions about your healthcare data</p>
-
-              <div className="example-queries">
-                <p className="examples-title">Example queries:</p>
-                <div className="example-grid">
-                  <div className="example-item">"Show all patients with housing assistance"</div>
-                  <div className="example-item">"How many interventions were provided last month?"</div>
-                  <div className="example-item">"List high-risk patients needing follow-up"</div>
-                </div>
-              </div>
+              <h2>CaliperLens</h2>
+              <p className="empty-subtitle">Ask questions about your healthcare data</p>
             </div>
           </div>
         ) : (

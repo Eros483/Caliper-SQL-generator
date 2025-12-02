@@ -25,6 +25,10 @@ class Settings(BaseSettings):
 
     Langsmith_API_KEY: str=os.getenv("LANGSMITH_API_KEY")
     GEMINI_API_KEY: str=os.getenv("GEMINI_API_KEY")
+
+    AWS_ACCESS_KEY: str=os.getenv("BEDROCK_ACCESS_KEY")
+    AWS_SECRET_KEY: str=os.getenv("BEDROCK_SECRET_ACCESS_KEY")
+    AWS_SESSION_TOKEN: str=os.getenv("AWS_SESSION_TOKEN")
     
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

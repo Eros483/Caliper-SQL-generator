@@ -1,6 +1,6 @@
 import os
 from urllib.parse import quote_plus
-from typing import Literal, List
+from typing import Literal, List, Optional
 
 from langchain_community.utilities import SQLDatabase
 from langchain.chat_models import init_chat_model
@@ -28,12 +28,32 @@ from backend.src.prompt_module import (
 logger = get_logger(__name__)
 
 class SQLAgentGenerator:
-    def __init__(self, api_key: str = None, model_name: str = "google_genai:gemini-2.5-flash"):
-        self.api_key = api_key or os.getenv("GOOGLE_API_KEY")
+    def __init__(
+        self, 
+        aws_access_key: str = None, 
+        aws_secret_key: str = None, 
+        aws_session_token: str = None,
+        region_name: str = "us-east-1",
+        # Default to the most capable Claude 3.5 Sonnet v2
+        # model_name: str = "us.anthropic.claude-3-5-sonnet-20241022-v2:0" currently waiting for bedrock access
+        model_name: str = "us.amazon.nova-pro-v1:0"
+    ):
+        # Priority: Constructor Args -> Settings Object -> Environment Vars
+        self.aws_access_key = aws_access_key or settings.AWS_ACCESS_KEY or os.getenv("AWS_ACCESS_KEY_ID")
+        self.aws_secret_key = aws_secret_key or settings.AWS_SECRET_KEY or os.getenv("AWS_SECRET_ACCESS_KEY")
+        self.aws_session_token = aws_session_token or settings.AWS_SESSION_TOKEN or os.getenv("AWS_SESSION_TOKEN")
+        self.region_name = region_name or os.getenv("AWS_DEFAULT_REGION", "us-east-1")
         self.model_name = model_name
         
-        if self.api_key:
-            os.environ["GOOGLE_API_KEY"] = self.api_key
+        # Set AWS Creds in environment for boto3/langchain to pick up automatically
+        # This ensures specific tools (like S3 retrievers) also inherit these creds
+        if self.aws_access_key:
+            os.environ["AWS_ACCESS_KEY_ID"] = self.aws_access_key
+        if self.aws_secret_key:
+            os.environ["AWS_SECRET_ACCESS_KEY"] = self.aws_secret_key
+        if self.aws_session_token:
+            os.environ["AWS_SESSION_TOKEN"] = self.aws_session_token
+        os.environ["AWS_DEFAULT_REGION"] = self.region_name
         
         self.llm = self._setup_llm()
         self.db = self._setup_database()
@@ -51,10 +71,22 @@ class SQLAgentGenerator:
         
         self.graph = self._build_graph()
         
-        logger.info("SQL Agent Initialized with Reasoning Graph & Pathfinder")
+        logger.info(f"SQL Agent Initialized with AWS Bedrock Model: {self.model_name}")
 
     def _setup_llm(self):
-        return init_chat_model(self.model_name)
+            """
+            Initializes the Bedrock Chat Model using the Converse API.
+            """
+            return init_chat_model(
+                self.model_name,
+                model_provider="bedrock_converse",
+                temperature=0,
+                # FIX: Pass these directly, do NOT wrap them in a 'kwargs' dict
+                region_name=self.region_name,
+                aws_access_key_id=self.aws_access_key,
+                aws_secret_access_key=self.aws_secret_key,
+                aws_session_token=self.aws_session_token
+            )
 
     def _setup_database(self) -> SQLDatabase:
         try:
@@ -91,7 +123,7 @@ class SQLAgentGenerator:
         
         # Give access to RAG search and standard schema lookup
         tools = [self.tool_map["sql_db_find_relevant_tables"], self.tool_map["sql_db_schema"]]
-        llm_with_tools = self.llm.bind_tools(tools, tool_choice="any")
+        llm_with_tools = self.llm.bind_tools(tools) 
         
         response = llm_with_tools.invoke([system_message] + state["messages"])
         return {"messages": [response]}
@@ -129,7 +161,9 @@ class SQLAgentGenerator:
             self.tool_map["sql_db_get_column_info"]
         ]
         
-        llm_with_tools = self.llm.bind_tools(tools_to_bind, tool_choice="any")
+        # Note: We removed tool_choice="any" because Claude 3.5 Sonnet is 
+        # highly intelligent at auto-detecting when to use tools vs ask clarifying questions.
+        llm_with_tools = self.llm.bind_tools(tools_to_bind)
         response = llm_with_tools.invoke([system_message] + state["messages"])
         
         return {"messages": [response]}
@@ -143,6 +177,7 @@ class SQLAgentGenerator:
         # 1. Handle Raw SQL Text (No tool call)
         if not last_message.tool_calls:
             content = last_message.content.strip()
+            # Basic check if it looks like SQL but wasn't a tool call
             if any(content.upper().startswith(kw) for kw in ["SELECT", "INSERT", "UPDATE", "DELETE"]):
                 logger.warning("Detected raw SQL text. Converting to tool_call...")
                 if "LIMIT" not in content.upper(): content += " LIMIT 10"
@@ -180,7 +215,7 @@ class SQLAgentGenerator:
                     "name": "sql_db_query",
                     "args": {"query": proposed_query},
                     "type": "tool_call"
-                }])]}
+                }])] }
         
         return {"messages": []}
 
