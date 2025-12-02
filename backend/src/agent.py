@@ -25,9 +25,6 @@ from backend.src.prompt_module import (
     answer_validation_prompt_module
 )
 
-# ----- GEMINI SPECIFIC SETUP FOR QUICK TESTING -----
-
-
 logger = get_logger(__name__)
 
 class SQLAgentGenerator:
