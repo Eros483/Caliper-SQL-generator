@@ -95,7 +95,7 @@ class SchemaGraph:
 
         try:
             start = valid_tables[0]
-            # HEURISTIC: Always try to anchor on 'patient' if present, to ensure star-schema validity
+            # forced anchoring on  patients table.
             if "patient" in valid_tables:
                 start = "patient"
                 
@@ -103,8 +103,7 @@ class SchemaGraph:
             
             for target in valid_tables:
                 if target == start: continue
-                
-                # USE WEIGHTS FOR SHORTEST PATH
+
                 path = nx.shortest_path(self.graph, source=start, target=target, weight='weight')
 
                 for i in range(len(path) - 1):

@@ -27,11 +27,9 @@ def get_db_tools(db: SQLDatabase, schema_rag: SchemaRAG, schema_graph: SchemaGra
                 return "Error: You must specify a specific column name, not *"
                 
             if search_keyword:
-                # added fuzzy search capability.
                 query = f"SELECT DISTINCT {column_name} FROM {table_name} WHERE {column_name} LIKE :keyword LIMIT 15"
                 result = db.run(query, parameters={'keyword': f'%{search_keyword}%'})
             else:
-                # Default behavior
                 result = db.run(f"SELECT DISTINCT {column_name} FROM {table_name} LIMIT 15")
             
             if not result:

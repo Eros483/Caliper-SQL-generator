@@ -209,7 +209,7 @@ class SchemaRAG:
                 "  WHERE ct.label LIKE '%Anxiety%' OR ct.label LIKE '%Depression%'",
                 "  LIMIT 10;",
                 "",
-                "⚠️ DO NOT skip Step 1 - exact spelling matters!"
+                "DO NOT skip Step 1 - exact spelling matters!"
             ],
             
             "insurance_query_pattern": [
@@ -252,7 +252,7 @@ class SchemaRAG:
                 "",
                 "Triggers: 'Patients in org X', 'org_id 16', 'organization filtering'",
                 "",
-                "⚠️ CRITICAL PATH (DO NOT SKIP BRIDGE TABLES):",
+                "CRITICAL PATH (DO NOT SKIP BRIDGE TABLES):",
                 "",
                 "Full Join Path:",
                 "  patient -> map_patient_metrics -> lob -> organization",
@@ -314,7 +314,7 @@ class SchemaRAG:
                 "",
                 "Triggers: 'Patients with Anxiety in org 16', 'Homelessness patients from organization X'",
                 "",
-                "⚠️ This requires BOTH diagnosis and organization join paths",
+                "This requires BOTH diagnosis and organization join paths",
                 "",
                 "STEP-BY-STEP:",
                 "",
@@ -343,7 +343,7 @@ class SchemaRAG:
                 "    AND o.org_id = 16",
                 "  LIMIT 10;",
                 "",
-                "⚠️ Note: contributor_type.org_id and organization.org_id are separate concepts!",
+                "Note: contributor_type.org_id and organization.org_id are separate concepts!",
                 "  - contributor_type.org_id = who DEFINED the condition",
                 "  - Filter by organization.org_id = which org the PATIENT belongs to"
             ]

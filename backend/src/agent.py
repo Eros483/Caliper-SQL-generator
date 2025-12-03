@@ -41,8 +41,7 @@ class SQLAgentGenerator:
         bedrock_provider=True,
 
         region_name: str = "us-east-1",
-        # Default to the most capable Claude 3.5 Sonnet v2
-        # model_name: str = "us.anthropic.claude-haiku-4-5-20251001-v1:0" #currently waiting for bedrock access
+        # model_name: str = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
         model_name: str = "us.amazon.nova-pro-v1:0"
     ):
         """
@@ -312,7 +311,6 @@ class SQLAgentGenerator:
 
     Execute the query NOW with sql_db_query.""")]}
 
-        # Continue with existing validation logic...
         if isinstance(last_message, ToolMessage):
             if len(state["messages"]) >= 2:
                 last_ai_msg = None
@@ -329,8 +327,8 @@ class SQLAgentGenerator:
                         "sql_db_schema", 
                         "sql_db_get_foreign_keys",
                         "sql_db_get_column_info",
-                        "sql_db_query_distinct_values",  # ADD THIS
-                        "sql_db_sample_rows"  # ADD THIS
+                        "sql_db_query_distinct_values",
+                        "sql_db_sample_rows"
                     ]
                     
                     if tool_name in HELPER_TOOLS:
@@ -342,12 +340,10 @@ class SQLAgentGenerator:
             
         sql_result = last_message.content
 
-        # Binary data detection
         if "b'\\" in sql_result or "bytearray" in str(sql_result).lower():
             logger.warning("Binary data detected in output. Triggering immediate retry.")
             return {"messages": [HumanMessage(content="SYSTEM FEEDBACK: Binary data detected (b'\\x00...'). Retry using HEX(column) or BIN_TO_UUID(column).")]}
 
-        # Extract user question and generated query for validation
         user_question = "Unknown"
         for msg in reversed(state["messages"]):
             if isinstance(msg, HumanMessage) and not msg.content.startswith("SYSTEM"):
@@ -465,7 +461,7 @@ class SQLAgentGenerator:
 
         return workflow.compile()
 
-    def run(self, question: str, session_id: str = "default_session", config: RunnableConfig = None, org_id: int = 16) -> str:
+    def run(self, question: str, session_id: str = "default_session", config: RunnableConfig = None, org_id: int=None) -> str:
         """
         Executes the SQL Agent workflow for a given user question.
 
@@ -478,7 +474,7 @@ class SQLAgentGenerator:
             str: The final natural language response from the agent.
         """
         config = config or {}
-        # config["configurable"] = {"thread_id": session_id}
+        # config["configurable"] = {"thread_id": session_id} --> kept for memory, redacted from current version
         config["recursion_limit"] = 50 
         
         logger.info(f"Session: {session_id} | Query: {question}")

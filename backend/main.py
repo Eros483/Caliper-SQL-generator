@@ -23,9 +23,9 @@ async def lifespan(app: FastAPI):
     """
     global agent_instance
     try:
-        # logger.info("Initializing SQL Agent...")
-        agent_instance = SQLAgentGenerator(google_provider=True, bedrock_provider=False)
-        # agent_instance=SQLAgentGenerator()
+        logger.info("Initializing SQL Agent...")
+        # agent_instance = SQLAgentGenerator(google_provider=True, bedrock_provider=False)
+        agent_instance=SQLAgentGenerator()
         logger.info("SQL Agent ready.")
     except Exception as e:
         logger.error(f"Failed to initialize Agent: {e}")
@@ -81,7 +81,7 @@ async def chat_endpoint(request: ChatRequest):
         logger.info(f"Session: {request.session_id} | Query: {request.query}")
         
         # Pass the session_id to the agent for thread-level persistence
-        result = agent_instance.run(request.query, session_id=request.session_id)
+        result = agent_instance.run(request.query, session_id=request.session_id, org_id=16)
         
         return ChatResponse(response=result)
     
