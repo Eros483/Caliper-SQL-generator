@@ -172,7 +172,8 @@ class SQLAgentGenerator:
         Returns:
             dict: The LLM's response containing the generated SQL query or further tool calls.
         """
-        base_prompt = generate_query_prompt_module(self.db)
+        org_id=state.get("user_context", {}).get("org_id", 16)
+        base_prompt = generate_query_prompt_module(self.db, org_id=org_id)
 
         instruction = """
         \n\n### EXECUTION PLAN
@@ -181,6 +182,7 @@ class SQLAgentGenerator:
         3. **EXECUTION PHASE (CRITICAL):** Once you have the table names and join logic, you **MUST** run `sql_db_query`.
            - **DO NOT STOP** after finding the schema or join path.
            - You have not answered the user until you have run a SELECT query and received actual data rows.
+        4. **SECURITY:** You MUST filter by the Organization ID provided in the system prompt.
         
         ### DATA RULES
         - Use `LIMIT 10` for all queries.
@@ -463,7 +465,7 @@ class SQLAgentGenerator:
 
         return workflow.compile()
 
-    def run(self, question: str, session_id: str = "default_session", config: RunnableConfig = None):
+    def run(self, question: str, session_id: str = "default_session", config: RunnableConfig = None, org_id: int = 16) -> str:
         """
         Executes the SQL Agent workflow for a given user question.
 
@@ -481,7 +483,11 @@ class SQLAgentGenerator:
         
         logger.info(f"Session: {session_id} | Query: {question}")
         
-        initial_state = {"messages": [{"role": "user", "content": question}]}
+        initial_state = {
+            "messages": [{"role": "user", "content": question}],
+            "user_context": {"org_id": org_id} 
+        }
+        
         final_response_content = ""
         
         try:

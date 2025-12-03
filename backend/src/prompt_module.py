@@ -22,10 +22,10 @@ def select_table_prompt_module() -> str:
     """
 
 
-def generate_query_prompt_module(db) -> str:
+def generate_query_prompt_module(db, org_id=None) -> str:
    dialect = db.dialect
 
-   return f"""
+   base_prompt=f"""
    You are a generic SQL Expert Agent. You are capable of reasoning through complex schemas using tools.
 
    ### CRITICAL EXECUTION RULE
@@ -109,7 +109,22 @@ def generate_query_prompt_module(db) -> str:
 
    Dialect: {dialect}
    """
-
+   if org_id:
+      security_context = f"""
+      \n\n### 🔒 SECURITY CONTEXT (MANDATORY):
+      - The active user belongs to **Organization ID {org_id}**.
+      - You MUST apply a filter for `organization.org_id = {org_id}` to EVERY query involving patients or sensitive data.
+      - **JOIN PATH FOR SECURITY:**
+         To filter `patient` by Org {org_id}, you must join:
+         `patient` 
+         JOIN `map_patient_metrics` ON patient.patient_id = map_patient_metrics.patient_id
+         JOIN `lob` ON map_patient_metrics.lob_id = lob.lob_id
+         JOIN `organization` ON lob.org_guid = organization.org_guid
+         WHERE organization.org_id = {org_id}
+      - Do NOT output data for any other organization.
+      """
+      return base_prompt + security_context
+   return base_prompt
 
 def query_verification_prompt_module(db) -> str:
    """
@@ -136,6 +151,9 @@ def query_verification_prompt_module(db) -> str:
    
    3. **The Syntax Check:**
       - Correct quoting, correct `LIKE` syntax, correct usage of `NOW()` vs `CURRENT_DATE()`.
+   
+   4. **Security Violations:**
+      - Does the query properly filter by the Organization ID requested in the system prompt?
    
    If mistakes are found, rewrite the query. If correct, reproduce it.
    """
