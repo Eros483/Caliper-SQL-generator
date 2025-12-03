@@ -117,9 +117,13 @@ function ChatInterface() {
           <div className="empty-state">
             <div className="empty-container">
               <div className="empty-icon">
-                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                </svg>
+                <img 
+                  src="/caliper_lens.png" 
+                  alt="CaliperLens Logo" 
+                  width="64" 
+                  height="64"
+                  style={{ objectFit: 'contain' }} 
+                />
               </div>
               <h2>CaliperLens</h2>
               <p className="empty-subtitle">Ask questions about your healthcare data</p>

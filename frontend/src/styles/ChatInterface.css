@@ -58,7 +58,7 @@
   text-decoration: none;
   font-weight: 500;
   transition: all 0.2s ease;
-  border: none;
+  border: 1px solid #cbd5e1;
   background: none;
   cursor: pointer;
   padding: 8px 16px;
