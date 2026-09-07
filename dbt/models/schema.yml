@@ -12,9 +12,7 @@ models:
       - name: sdoh_score
         description: "Social Determinants of Health risk score (0-100 scale). Higher = more social risk factors."
       - name: insurance_name
-        description: "Health insurance type — e.g., Medicaid, Medicare, Commercial"
-        tests:
-          - not_null
+        description: "Health insurance type — e.g., Medicaid, Medicare, Commercial. NULL when the patient has no coverage mapping (only ~9% of patients are mapped in map_patient_metrics)."
 
   - name: fct_interventions
     description: "Intervention transactions fact table. One row per patient-intervention event. Pre-joined to patient and insurance for cost analysis."

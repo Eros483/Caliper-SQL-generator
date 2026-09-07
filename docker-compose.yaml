@@ -1,4 +1,20 @@
 services:
+  mysql:
+    image: mysql:8.0
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+      MYSQL_DATABASE: ${DB_NAME:-fhs_coredb_local}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    command: --max-allowed-packet=512M
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
   backend:
     build:
       context: .
@@ -30,3 +46,7 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: admin
     volumes:
       - grafana-storage:/var/lib/grafana
+
+volumes:
+  mysql-data:
+  grafana-storage:

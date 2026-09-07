@@ -1,4 +1,4 @@
-.PHONY: setup dev test style build clean infra-up infra-down dbt-run eval help
+.PHONY: setup dev test style build clean infra-up infra-down db-load dbt-run eval help
 
 ## Install all dependencies (frontend + backend)
 setup:
@@ -34,17 +34,26 @@ clean:
 	rm -rf backend/__pycache__ backend/.pytest_cache backend/.venv backend/.ruff_cache
 	rm -rf .venv __pycache__ .ruff_cache
 
-## Start docker-compose services (Airflow, Prometheus, Grafana, Sandbox)
+## Start docker-compose services (MySQL, backend, Prometheus, Grafana, Sandbox)
 infra-up:
-	docker-compose up -d
+	docker compose up -d
 
 ## Stop docker-compose services
 infra-down:
-	docker-compose down
+	docker compose down
+
+## Load MySQL dump into local database (starts MySQL, waits for health, streams dump)
+db-load:
+	docker compose up -d mysql
+	@echo "==> Waiting for MySQL to be ready..."
+	@until docker exec $$(docker compose ps -q mysql 2>/dev/null) mysqladmin ping -h localhost -uroot --silent 2>/dev/null; do sleep 2; done
+	@echo "==> Loading db-dump.sql (this takes a few minutes)..."
+	docker exec -i $$(docker compose ps -q mysql 2>/dev/null) mysql -uroot < db-dump.sql
+	@echo "==> Done."
 
 ## Run dbt models (MySQL -> DuckDB transforms)
 dbt-run:
-	cd dbt && dbt run
+	cd backend && uv run --group dev dbt run --project-dir ../dbt --profiles-dir ../dbt
 
 ## Run the NL-to-SQL eval harness (schema check only, CI-safe)
 eval:
