@@ -38,6 +38,16 @@ make style    # Format + lint
 
 For the complete architecture — agent graph, tools exposed to the LLM, guardrails, data pipeline, and infra — see [docs/design.md](docs/design.md).
 
+## Data Pipeline
+
+MySQL holds the raw dump; dbt builds the DuckDB marts the agent queries.
+
+```bash
+make infra-up   # Start MySQL + backend + Prometheus + Grafana
+make db-load    # Load db-dump.sql into MySQL (one-time, ~25 min for the 1.2G dump)
+make dbt-run    # Transform MySQL → DuckDB marts (data/caliperlens.duckdb)
+```
+
 ## System Flow
 
 The diagram shows the two pipelines that keep CaliperLens running: the **offline data pipeline** (MySQL → DuckDB, scheduled by Airflow) and the **online query pipeline** (user question → validated answer).
