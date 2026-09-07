@@ -67,8 +67,16 @@ class SQLAgentGenerator:
         return standard_tools + custom_tools + [run_python_code_in_sandbox, analyze_data, generate_chart]
 
     def _preprocess(self, question: str) -> str:
-        rag_result = self.rag.search_tables(question)
-        return build_enriched_prompt(question, rag_result)
+        from backend.core.ingestion import classify, normalize
+
+        clean = normalize(question)
+        label = classify(clean)
+        if label != "benign":
+            logger.warning(f"Ingestion classified as {label}: {question[:80]}")
+            # hardened prompt — no schema internals
+            return f"User Question: {clean}\n[Hardened mode: query-only tools, no schema internals exposed]"
+        rag_result = self.rag.search_tables(clean)
+        return build_enriched_prompt(clean, rag_result)
 
     def planner_node(self, state: AgentState) -> dict:
         base_prompt = state.get("enriched_prompt", "")
@@ -375,15 +383,24 @@ Decompose this question into a plan:
                 sql_result = msg.content
                 break
 
+        # trust: frame rows as untrusted tool content with nonce (persists in memory)
+        from backend.core.ingestion import coverage_check, wrap_untrusted
+
+        nonce = state.get("user_context", {}).get("nonce", "trust")
+        framed = wrap_untrusted(str(sql_result), nonce=nonce)
+
         prompt = f"""
         User Question: {user_question}
-        SQL Result: {sql_result}
+        SQL Result (untrusted tool output): {framed}
 
         Provide a concise, natural language answer.
         - If the result is a list, summarize it.
         - If the result is empty, explain that no matching records were found.
         """
         final_response = self.llm.invoke(prompt)
+        # §7 coverage check — every aggregate must appear in answer
+        if not coverage_check(final_response.content, str(sql_result)):
+            logger.warning("Coverage check failed — answer may omit aggregates")
         return {"messages": [final_response]}
 
     def should_continue(self, state: AgentState) -> str:
@@ -507,6 +524,9 @@ Decompose this question into a plan:
         session_id: str = "eval_session",
         org_id: int | None = None,
     ) -> dict:
+        import uuid
+
+        from backend.core.audit import audit_log
         from backend.core.semantic_cache import semantic_cache
 
         # lever 5 — semantic cache hit = skip generation
@@ -527,10 +547,11 @@ Decompose this question into a plan:
         config = {"configurable": {"thread_id": session_id}, "recursion_limit": 50}
 
         enriched_prompt = self._preprocess(question)
+        nonce = uuid.uuid4().hex[:8]
 
         initial_state = {
             "messages": [SystemMessage(content=enriched_prompt), HumanMessage(content=question)],
-            "user_context": {"org_id": org_id},
+            "user_context": {"org_id": org_id, "nonce": nonce},
             "enriched_prompt": enriched_prompt,
             "plan": None,
         }
@@ -540,4 +561,15 @@ Decompose this question into a plan:
         # store successful query in cache
         if trace["sql_queries"]:
             semantic_cache.set(cache_k, trace["sql_queries"][-1])
+        # compliance plane — append-only audit
+        try:
+            audit_log(
+                question,
+                trace["sql_queries"][-1] if trace["sql_queries"] else "",
+                str(trace["sql_results"]),
+                org_id,
+                trace_id=session_id,
+            )
+        except Exception:
+            pass
         return trace
