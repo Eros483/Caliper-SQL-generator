@@ -74,27 +74,31 @@ def guard_query(sql: str, org_id: int | None) -> str:
     if is_patient and org_id is None:
         raise GuardrailError("Missing org claim — query rejected")
 
-    # org injection — only if patient-touching and not already filtered
+    # org injection — always enforce claim value; rewrite any existing org_id predicate to claim
     if is_patient and org_id is not None:
-        # already has org_id predicate => don't duplicate
-        if "org_id" not in stripped.lower():
-            if re.search(r"\bWHERE\b", stripped, re.IGNORECASE):
-                stripped = re.sub(
-                    r"\bWHERE\b",
-                    f"WHERE org_id = {int(org_id)} AND",
-                    stripped,
-                    count=1,
-                    flags=re.IGNORECASE,
-                )
+        if "org_id" in stripped.lower():
+            # rewrite any existing org_id = <num> to the claim value (prevents bypass via org 99)
+            stripped = re.sub(
+                r"org_id\s*=\s*\d+",
+                f"org_id = {int(org_id)}",
+                stripped,
+                flags=re.IGNORECASE,
+            )
+        elif re.search(r"\bWHERE\b", stripped, re.IGNORECASE):
+            stripped = re.sub(
+                r"\bWHERE\b",
+                f"WHERE org_id = {int(org_id)} AND",
+                stripped,
+                count=1,
+                flags=re.IGNORECASE,
+            )
+        else:
+            m = re.search(r"\b(GROUP BY|ORDER BY|LIMIT|OFFSET)\b", stripped, re.IGNORECASE)
+            if m:
+                idx = m.start()
+                stripped = stripped[:idx].rstrip() + f" WHERE org_id = {int(org_id)} " + stripped[idx:]
             else:
-                # inject before LIMIT/ORDER/GROUP if present, else append
-                # simplest: append WHERE before any trailing clauses
-                m = re.search(r"\b(GROUP BY|ORDER BY|LIMIT|OFFSET)\b", stripped, re.IGNORECASE)
-                if m:
-                    idx = m.start()
-                    stripped = stripped[:idx].rstrip() + f" WHERE org_id = {int(org_id)} " + stripped[idx:]
-                else:
-                    stripped = stripped + f" WHERE org_id = {int(org_id)}"
+                stripped = stripped + f" WHERE org_id = {int(org_id)}"
 
     # BINARY handling — wrap bare patient_id selects with HEX if not already wrapped
     # ponytail: minimal — only rewrite SELECT patient_id without HEX/BIN_TO_UUID
