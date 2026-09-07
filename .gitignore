@@ -1,6 +1,8 @@
 *.sql
 !dbt/models/**/*.sql
 !dbt/macros/**/*.sql
+data/*.duckdb
+dbt/target/
 *.env
 notebook/
 __pycache__/
