@@ -72,6 +72,13 @@ class SQLAgentGenerator:
 
     def planner_node(self, state: AgentState) -> dict:
         base_prompt = state.get("enriched_prompt", "")
+        # lever 1 — planner skip for Tier 1/2 (deterministic via enriched prompt, no LLM call)
+        if "STRATEGY: Query only" in base_prompt or "STRATEGY: Join tables" in base_prompt:
+            user_messages = [msg for msg in state["messages"] if isinstance(msg, HumanMessage)]
+            last_question = user_messages[-1].content if user_messages else ""
+            plan = Plan(steps=[PlanStep(step=1, action="query", description=last_question)])
+            return {"plan": plan, "messages": []}
+
         system_message = {"role": "system", "content": planner_system_prompt()}
 
         user_messages = [msg for msg in state["messages"] if isinstance(msg, HumanMessage)]
@@ -312,6 +319,16 @@ Decompose this question into a plan:
                 ]
             }
 
+        # lever 3 — deterministic validation on happy path: rows returned + no binary => skip LLM validate
+        if (
+            sql_result
+            and sql_result.strip()
+            and "no rows" not in sql_result.lower()
+            and "error" not in sql_result.lower()
+        ):
+            # sqlglot already validated the query via check_query_node; skip LLM call
+            return {"messages": [AIMessage(content="STATUS: VALID")], "plan": plan}
+
         user_question = "Unknown"
         for msg in reversed(state["messages"]):
             if isinstance(msg, HumanMessage) and not msg.content.startswith("SYSTEM"):
@@ -490,6 +507,23 @@ Decompose this question into a plan:
         session_id: str = "eval_session",
         org_id: int | None = None,
     ) -> dict:
+        from backend.core.semantic_cache import semantic_cache
+
+        # lever 5 — semantic cache hit = skip generation
+        cache_k = semantic_cache.make_key(question, org_id)
+        cached_sql = semantic_cache.get(cache_k)
+        if cached_sql:
+            try:
+                from backend.core.db import run_org_scoped
+
+                rows = run_org_scoped(self.db, cached_sql, org_id or 16)
+                answer = self.llm.invoke(
+                    f"User Question: {question}\nSQL Result: {rows}\nProvide concise answer."
+                ).content
+                return {"response": answer, "sql_queries": [cached_sql], "sql_results": [rows], "retries": 0}
+            except Exception:
+                pass  # fall through to normal path
+
         config = {"configurable": {"thread_id": session_id}, "recursion_limit": 50}
 
         enriched_prompt = self._preprocess(question)
@@ -502,4 +536,8 @@ Decompose this question into a plan:
         }
 
         logger.info(f"Eval Session: {session_id} | Query: {question}")
-        return self._stream_trace(initial_state, config)
+        trace = self._stream_trace(initial_state, config)
+        # store successful query in cache
+        if trace["sql_queries"]:
+            semantic_cache.set(cache_k, trace["sql_queries"][-1])
+        return trace

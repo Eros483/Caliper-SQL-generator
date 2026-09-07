@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 
 from backend.core.auth import (
     TokenPayload,
@@ -77,3 +78,26 @@ async def chat_endpoint(
         return ChatResponse(response=trace["response"], success=True)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/chat/stream")
+async def chat_stream_endpoint(
+    request: ChatRequest,
+    user: TokenPayload = Depends(get_current_user),
+    limiter=Depends(get_rate_limiter),
+):
+    from backend.core.streaming import sse_format
+
+    agent = get_agent()
+    if not agent:
+        raise HTTPException(status_code=503, detail="Agent not initialized")
+    if not limiter.is_allowed(user.sub):
+        raise HTTPException(status_code=429, detail="Rate limit exceeded")
+
+    def _gen():
+        trace = agent.run_with_trace(request.query, session_id=request.session_id, org_id=user.org_id)
+        for token in trace["response"].split(" "):
+            yield sse_format(token + " ")
+        yield sse_format("[DONE]")
+
+    return StreamingResponse(_gen(), media_type="text/event-stream")
