@@ -23,6 +23,13 @@ class Settings(BaseSettings):
     demo_user: str = ""
     demo_password_hash: str = ""
 
+    # parity seams — arch §10 local vs AWS
+    env: str = "development"
+    llm_backend: str = "local"
+    auth_backend: str = "local"
+    sandbox_backend: str = "local"
+    vector_backend: str = "local"
+
     @property
     def database_uri(self) -> str:
         from urllib.parse import quote_plus

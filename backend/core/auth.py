@@ -37,6 +37,12 @@ def create_refresh_token(user_id: str, org_id: int | None = None) -> str:
 
 
 def verify_token(token: str) -> TokenPayload:
+    # seam: AUTH_BACKEND selects verification path; single call site per arch §10
+    # ponytail: cognito path is HS256 fallback until JWKS is wired — add RS256/JWKS when Cognito exists
+    backend = (settings.auth_backend or "local").lower()
+    if backend == "cognito":
+        # TODO: verify via Cognito JWKS (RS256); fallback to HS256 for local parity
+        pass
     try:
         payload = jwt.decode(token, settings.secret_key, algorithms=[ALGORITHM])
         return TokenPayload(**payload)

@@ -136,3 +136,19 @@ class SandboxExecutor:
         except Exception as e:
             logger.error(f"Sandbox health check failed: {e}")
             return False
+
+
+# ponytail: minimal seam — same execute/health_check contract for both backends
+class _LambdaSandboxStub:
+    def execute(self, code: str, timeout: int = 30) -> dict[str, object]:
+        raise NotImplementedError("Lambda sandbox not configured in local env")
+
+    def health_check(self) -> bool:
+        return False
+
+
+def get_sandbox_executor() -> SandboxExecutor | _LambdaSandboxStub:
+    backend = (settings.sandbox_backend or "local").lower()
+    if backend == "lambda":
+        return _LambdaSandboxStub()
+    return SandboxExecutor()
