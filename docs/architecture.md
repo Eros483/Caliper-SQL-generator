@@ -33,6 +33,10 @@ Per-tier after compression: Tier 1 p50 ~2.5–3s / p95 ~4–5s; Tier 2 p50 ~3–
 
 ## 3. Architecture
 
+![CaliperLens AWS Architecture](images/aws_architecture.png)
+
+*Generated via [mingrammer/diagrams](https://github.com/mingrammer/diagrams) — `make diagram` — source: `docs/diagram.py`*
+
 ```
 Clinician → CloudFront → API GW + WAF → ALB → Fargate API (stateless FastAPI + LangGraph)
   ├─ Bedrock (Haiku + Titan, prompt cache, VPC endpoint)          reasoning + embeddings

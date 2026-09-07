@@ -1,4 +1,4 @@
-.PHONY: setup dev test style build clean infra-up infra-down db-load dbt-run eval redteam help
+.PHONY: setup dev test style build clean infra-up infra-down db-load dbt-run eval redteam diagram help
 
 ## Install all dependencies (frontend + backend)
 setup:
@@ -63,6 +63,10 @@ eval:
 redteam:
 	python redteam/runner.py --check
 	cd backend && uv run python ../redteam/runner.py --run
+
+## Generate architecture diagrams (requires graphviz + diagrams)
+diagram:
+	cd backend && uv run python ../docs/diagram.py
 
 ## Show this help
 help:

@@ -10,6 +10,10 @@ The stack runs entirely locally (Docker). Only the frontend is deployed to Verce
 
 ## Architecture
 
+![CaliperLens Local Architecture](images/local_architecture.png)
+
+*Generated via [mingrammer/diagrams](https://github.com/mingrammer/diagrams) — `make diagram` — source: `docs/diagram.py`*
+
 ```
 ┌───────────────────────────────────────────────────────────────────┐
 │                        Local Docker Host                           │
