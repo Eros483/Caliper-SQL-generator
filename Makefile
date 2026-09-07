@@ -1,4 +1,4 @@
-.PHONY: setup dev test style build clean infra-up infra-down db-load dbt-run eval help
+.PHONY: setup dev test style build clean infra-up infra-down db-load dbt-run eval redteam help
 
 ## Install all dependencies (frontend + backend)
 setup:
@@ -58,6 +58,11 @@ dbt-run:
 ## Run the NL-to-SQL eval harness (schema check only, CI-safe)
 eval:
 	python eval/runner.py --check
+
+## Run Boundary 1 redteam harness (deterministic, CI-safe)
+redteam:
+	python redteam/runner.py --check
+	cd backend && uv run python ../redteam/runner.py --run
 
 ## Show this help
 help:
