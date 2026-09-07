@@ -146,14 +146,24 @@ Decompose this question into a plan:
         return {"messages": [response], "plan": plan}
 
     def check_query_node(self, state: AgentState) -> dict:
+        from backend.core.guardrails import GuardrailError, guard_query
+
+        org_id = state.get("user_context", {}).get("org_id")
+        # local fallback keeps existing demo flow; prod will have real claim
+        if org_id is None:
+            org_id = 16
+
         last_message = state["messages"][-1]
         if not last_message.tool_calls:
             content = last_message.content.strip()
             if any(content.upper().startswith(kw) for kw in ["SELECT", "INSERT", "UPDATE", "DELETE"]):
                 logger.warning("Detected raw SQL text. Converting to tool_call...")
-                if "LIMIT" not in content.upper():
-                    content += " LIMIT 10"
-
+                try:
+                    guarded = guard_query(content, org_id)
+                    content = guarded
+                except GuardrailError as e:
+                    # fail-closed — no retry, surface error directly
+                    return {"messages": [AIMessage(content=f"Guardrail rejected query: {e}")]}
                 import os as _os
 
                 manual_tool_call = {
@@ -182,8 +192,11 @@ Decompose this question into a plan:
 
         if tool_name == "sql_db_query":
             proposed_query = tool_call["args"].get("query", "")
-            if "LIMIT" not in proposed_query.upper():
-                proposed_query += " LIMIT 10"
+            try:
+                guarded = guard_query(proposed_query, org_id)
+            except GuardrailError as e:
+                return {"messages": [AIMessage(content=f"Guardrail rejected query: {e}")]}
+            if guarded != proposed_query:
                 return {
                     "messages": [
                         AIMessage(
@@ -192,7 +205,7 @@ Decompose this question into a plan:
                                 {
                                     "id": tool_call["id"],
                                     "name": "sql_db_query",
-                                    "args": {"query": proposed_query},
+                                    "args": {"query": guarded},
                                     "type": "tool_call",
                                 }
                             ],

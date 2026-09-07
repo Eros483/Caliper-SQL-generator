@@ -23,6 +23,7 @@ dependencies = [
     "slowapi>=0.1.10",
     "prometheus-fastapi-instrumentator>=8.1.0",
     "python-json-logger>=4.1.0",
+    "sqlglot>=30.14.0",
 ]
 
 [project.optional-dependencies]
